@@ -5,37 +5,39 @@ const config = require('../config');
 const errorHandler = (err, req, res, _next) => {
   let error = { ...err };
   error.message = err.message;
+  const requestId = req.requestId || 'unknown';
 
   // Log error to console
-  console.error('[ERROR]', err.message);
+  console.error(`[${requestId}] [ERROR]`, err.message);
 
   // Handle specific error types
   if (err instanceof AppError) {
+    err.requestId = requestId;
     return res.status(err.statusCode).json(err.toJSON());
   }
 
   // Mongoose duplicate key error
   if (err.code === 11000) {
     const message = 'Duplicate field value entered';
-    error = AppError.conflict(message);
+    error = AppError.conflict(message, null, requestId);
     return res.status(error.statusCode).json(error.toJSON());
   }
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
-    error = AppError.unauthorized('Invalid token');
+    error = AppError.unauthorized('Invalid token', null, requestId);
     return res.status(error.statusCode).json(error.toJSON());
   }
 
   if (err.name === 'TokenExpiredError') {
-    error = AppError.unauthorized('Token expired');
+    error = AppError.unauthorized('Token expired', null, requestId);
     return res.status(error.statusCode).json(error.toJSON());
   }
 
   // Validation errors
   if (err.name === 'ValidationError') {
     const details = Object.values(err.errors).map((e) => e.message);
-    error = AppError.validation('Validation failed', details);
+    error = AppError.validation('Validation failed', details, requestId);
     return res.status(error.statusCode).json(error.toJSON());
   }
 
@@ -50,6 +52,9 @@ const errorHandler = (err, req, res, _next) => {
       message,
       statusCode,
     },
+    meta: {
+      requestId,
+    },
     timestamp: new Date().toISOString(),
   };
 
@@ -63,10 +68,11 @@ const errorHandler = (err, req, res, _next) => {
 
 // 404 handler
 const notFoundHandler = (req, res, _next) => {
+  const requestId = req.requestId || 'unknown';
   const error = AppError.notFound('Route not found', {
     path: req.path,
     method: req.method,
-  });
+  }, requestId);
   error.code = 'ROUTE_NOT_FOUND';
   res.status(404).json(error.toJSON());
 };

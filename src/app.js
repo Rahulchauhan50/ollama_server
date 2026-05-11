@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
+const { isConnected } = require('./config/database');
 const { requestLogger } = require('./middleware/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/error');
 const { ApiResponse } = require('./utils');
@@ -22,8 +23,14 @@ app.use(requestLogger);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   const response = ApiResponse.success(
-    { status: 'healthy' },
-    'Backend is healthy'
+    {
+      status: 'healthy',
+      database: isConnected() ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString(),
+    },
+    'Backend is healthy',
+    200,
+    req.requestId
   );
   res.status(response.statusCode).json(response.toJSON());
 });
@@ -40,7 +47,7 @@ app.get('/api/config', (req, res) => {
       embeddingModel: config.ollama.embeddingModel,
       allowedChatModels: config.ollama.allowedChatModels,
     },
-  }, 'Configuration');
+  }, 'Configuration', 200, req.requestId);
   res.status(response.statusCode).json(response.toJSON());
 });
 
@@ -48,7 +55,9 @@ app.get('/api/config', (req, res) => {
 app.get('/api/version', (req, res) => {
   const response = ApiResponse.success(
     { version: '1.0.0', api: 'v1' },
-    'API version'
+    'API version',
+    200,
+    req.requestId
   );
   res.status(response.statusCode).json(response.toJSON());
 });
@@ -57,7 +66,9 @@ app.get('/api/version', (req, res) => {
 app.get('/', (req, res) => {
   const response = ApiResponse.success(
     null,
-    'Ollama Backend API v1.0'
+    'Ollama Backend API v1.0',
+    200,
+    req.requestId
   );
   res.status(response.statusCode).json(response.toJSON());
 });
