@@ -10,12 +10,41 @@ const { ApiResponse } = require('./utils');
 const authRoutes = require('./routes/auth.routes');
 const modelsRoutes = require('./routes/models.routes');
 const adminRoutes = require('./routes/admin.routes');
+const healthRoutes = require('./routes/health.routes');
+const conversationRoutes = require('./routes/conversation.routes');
+const messageRoutes = require('./routes/message.routes');
 
 const app = express();
 
 // Middleware - Security & Parsing
 app.use(helmet());
-app.use(cors());
+
+
+
+const allowedOrigins = [
+  'http://localhost:5173', // Development
+  'http://localhost:3000', // Development
+];
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.startsWith('file://') ||
+        origin === 'null'
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS not allowed'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -27,6 +56,9 @@ app.use(requestLogger);
 app.use('/api/auth', authRoutes);
 app.use('/api/models', modelsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/health', healthRoutes);
+app.use('/api/conversations', conversationRoutes);
+app.use('/api', messageRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

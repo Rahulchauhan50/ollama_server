@@ -26,8 +26,6 @@ const OllamaService = {
       // Expect response data to have tags or models list
       const data = res.data;
 
-      console.log('Ollama /api/tags response:', data.models[0].model);
-
       // Ollama /api/tags typically returns an array of tag strings or objects
       if (Array.isArray(data)) {
         return data.map((item) => {
@@ -43,7 +41,7 @@ const OllamaService = {
 
       // Handle response with 'models' property (newer Ollama versions)
       if (data && Array.isArray(data.models)) {
-        return data.models.map((m) => ({ model: typeof m === 'string' ? m : m.model }));
+        return data.models.map((m) => ({ name: typeof m === 'string' ? m : m.name }));
       }
 
       // Fallback if data has a 'tags' property
@@ -193,6 +191,27 @@ const OllamaService = {
         throw error;
       }
       throw AppError.serviceUnavailable(`Failed to list running models from Ollama: ${error.message}`);
+    }
+  },
+
+  async healthCheck() {
+    try {
+      const base = config.ollama.baseUrl;
+      const url = `${base.replace(/\/$/, '')}/api/tags`;
+
+      // Build axios config with optional basic auth
+      const axiosConfig = { timeout: 5000 };
+      if (config.ollama.username && config.ollama.password) {
+        axiosConfig.auth = {
+          username: config.ollama.username,
+          password: config.ollama.password,
+        };
+      }
+
+      await axios.get(url, axiosConfig);
+      return { reachable: true };
+    } catch (error) {
+      return { reachable: false, reason: error.message };
     }
   },
 };

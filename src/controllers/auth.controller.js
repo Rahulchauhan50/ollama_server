@@ -59,12 +59,12 @@ const AuthController = {
     }
 
     // Perform login
-    const { user, accessToken } = await AuthService.login(
+    const { user, accessToken, refreshToken } = await AuthService.login(
       validation.data.email,
       validation.data.password
     );
 
-    // Return 200 OK with user data and token
+    // Return 200 OK with user data and tokens
     res.status(200).json(
       ApiResponse.success(
         {
@@ -75,6 +75,7 @@ const AuthController = {
             role: user.role,
           },
           accessToken,
+          refreshToken,
         },
         'Login successful',
         200,
