@@ -13,6 +13,7 @@ const adminRoutes = require('./routes/admin.routes');
 const healthRoutes = require('./routes/health.routes');
 const conversationRoutes = require('./routes/conversation.routes');
 const messageRoutes = require('./routes/message.routes');
+const devRoutes = require('./routes/dev.routes');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use(helmet());
 const allowedOrigins = [
   'http://localhost:5173', // Development
   'http://localhost:3000', // Development
+  'https://chat.rahulcodes.tech'
 ];
 app.use(
   cors({
@@ -59,6 +61,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api', messageRoutes);
+if (!config.isProduction) {
+  app.use('/api/dev', devRoutes);
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

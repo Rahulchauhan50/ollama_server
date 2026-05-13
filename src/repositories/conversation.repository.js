@@ -1,4 +1,5 @@
 const Conversation = require('../models/Conversation.model');
+const Message = require('../models/Message.model');
 
 const ConversationRepository = {
   async create(userId, data) {
@@ -34,7 +35,7 @@ const ConversationRepository = {
 
     const [conversations, total] = await Promise.all([
       Conversation.find(query)
-        .sort({ createdAt: -1 })
+        .sort({ isPinned: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -65,6 +66,9 @@ const ConversationRepository = {
     if (data.isArchived !== undefined) {
       conversation.isArchived = data.isArchived;
     }
+    if (data.isPinned !== undefined) {
+      conversation.isPinned = data.isPinned;
+    }
 
     return conversation.save();
   },
@@ -76,6 +80,9 @@ const ConversationRepository = {
     if (!conversation || conversation.userId.toString() !== userId.toString()) {
       return false;
     }
+
+    // Delete messages belonging to this conversation to avoid orphaned messages
+    await Message.deleteMany({ conversationId });
 
     await Conversation.deleteOne({ _id: conversationId });
     return true;

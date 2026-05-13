@@ -8,11 +8,13 @@ const config = require('../config');
  */
 const EmbeddingService = {
   /**
-   * Generate embeddings for text content
-   * @param {string} text - Text to generate embeddings for
-   * @returns {Promise<number[]>} Array of embedding values
+   * Create a text embedding for the provided text.
+   * This is the phase 25 entry point and keeps the old generateEmbeddings
+   * method working for earlier callers.
+   * @param {string} text
+   * @returns {Promise<number[]>}
    */
-  async generateEmbeddings(text) {
+  async createTextEmbedding(text) {
     if (!text || typeof text !== 'string') {
       throw AppError.validation('Text must be a non-empty string');
     }
@@ -29,10 +31,10 @@ const EmbeddingService = {
         });
       }
 
-      const embeddings = await OllamaService.createEmbedding(
-        config.ollama.embeddingModel,
-        text
-      );
+      const embeddings = await OllamaService.createEmbedding({
+        model: config.ollama.embeddingModel,
+        input: text,
+      });
 
       if (Array.isArray(embeddings)) {
         return embeddings;
@@ -46,15 +48,20 @@ const EmbeddingService = {
         return embeddings.embeddings[0] || embeddings.embeddings;
       }
 
-      if (!embeddings || typeof embeddings !== 'object') {
-        throw AppError.internal('Invalid embedding response from Ollama');
-      }
-
       throw AppError.internal('Invalid embedding response from Ollama');
     } catch (error) {
       if (error instanceof AppError) throw error;
-      throw AppError.internal(`Failed to generate embeddings: ${error.message}`);
+      throw AppError.internal(`Failed to create text embedding: ${error.message}`);
     }
+  },
+
+  /**
+   * Generate embeddings for text content
+   * @param {string} text - Text to generate embeddings for
+   * @returns {Promise<number[]>} Array of embedding values
+   */
+  async generateEmbeddings(text) {
+    return this.createTextEmbedding(text);
   },
 
   /**

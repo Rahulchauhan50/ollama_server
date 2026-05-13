@@ -39,6 +39,11 @@ const conversationSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt
@@ -49,6 +54,7 @@ const conversationSchema = new mongoose.Schema(
 // Index for fast user lookups with sorting
 conversationSchema.index({ userId: 1, createdAt: -1 });
 conversationSchema.index({ userId: 1, isArchived: 1 });
+conversationSchema.index({ userId: 1, isPinned: 1 });
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 

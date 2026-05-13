@@ -17,6 +17,7 @@ const updateConversationSchema = z.object({
   description: z.string().max(1000).optional().nullable(),
   model: z.string().min(1).optional(),
   isArchived: z.boolean().optional(),
+  isPinned: z.boolean().optional(),
 });
 
 const createConversation = asyncHandler(async (req, res) => {
@@ -42,12 +43,12 @@ const createConversation = asyncHandler(async (req, res) => {
 
   const conversation = await ConversationRepository.create(req.user._id, data);
 
-  const response = new ApiResponse(
-    201,
-    'Conversation created',
-    { conversation }
+  res.status(201).json(
+    ApiResponse.created(
+      { conversation },
+      'Conversation created'
+    )
   );
-  res.status(201).json(response);
 });
 
 const listConversations = asyncHandler(async (req, res) => {
@@ -60,15 +61,15 @@ const listConversations = asyncHandler(async (req, res) => {
     { skip, limit, archived }
   );
 
-  const response = new ApiResponse(
-    200,
-    'Conversations retrieved',
-    {
-      conversations,
-      pagination: { skip, limit, total },
-    }
+  res.status(200).json(
+    ApiResponse.success(
+      {
+        conversations,
+        pagination: { skip, limit, total },
+      },
+      'Conversations retrieved'
+    )
   );
-  res.status(200).json(response);
 });
 
 const getConversation = asyncHandler(async (req, res) => {
@@ -79,12 +80,12 @@ const getConversation = asyncHandler(async (req, res) => {
     throw AppError.notFound('Conversation not found');
   }
 
-  const response = new ApiResponse(
-    200,
-    'Conversation retrieved',
-    { conversation }
+  res.status(200).json(
+    ApiResponse.success(
+      { conversation },
+      'Conversation retrieved'
+    )
   );
-  res.status(200).json(response);
 });
 
 const updateConversation = asyncHandler(async (req, res) => {
@@ -113,12 +114,12 @@ const updateConversation = asyncHandler(async (req, res) => {
     throw AppError.notFound('Conversation not found');
   }
 
-  const response = new ApiResponse(
-    200,
-    'Conversation updated',
-    { conversation }
+  res.status(200).json(
+    ApiResponse.success(
+      { conversation },
+      'Conversation updated'
+    )
   );
-  res.status(200).json(response);
 });
 
 const deleteConversation = asyncHandler(async (req, res) => {
@@ -129,11 +130,12 @@ const deleteConversation = asyncHandler(async (req, res) => {
     throw AppError.notFound('Conversation not found');
   }
 
-  const response = new ApiResponse(
-    200,
-    'Conversation deleted'
+  res.status(200).json(
+    ApiResponse.success(
+      null,
+      'Conversation deleted'
+    )
   );
-  res.status(200).json(response);
 });
 
 module.exports = {

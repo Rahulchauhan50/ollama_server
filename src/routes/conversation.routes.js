@@ -6,6 +6,7 @@ const {
   updateConversation,
   deleteConversation,
 } = require('../controllers/conversation.controller');
+const { chatConversation } = require('../controllers/chat.controller');
 const { requireAuth } = require('../middleware/auth.middleware');
 
 const router = express.Router();
@@ -39,6 +40,12 @@ router.get('/:id', requireAuth, getConversation);
  * Update a conversation (title, description, model, isArchived)
  */
 router.put('/:id', requireAuth, updateConversation);
+
+/**
+ * POST /api/conversations/:id/chat
+ * Send a chat message to a conversation and get AI response
+ */
+router.post('/:conversationId/chat', requireAuth, chatConversation);
 
 /**
  * DELETE /api/conversations/:id

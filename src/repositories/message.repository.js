@@ -75,6 +75,14 @@ const MessageRepository = {
     );
   },
 
+  async updateMetadata(messageId, metadata) {
+    return Message.findByIdAndUpdate(
+      messageId,
+      { metadata },
+      { new: true }
+    );
+  },
+
   async findByConversationIdBatch(conversationId, limit = 10) {
     return Message.find({ conversationId })
       .sort({ createdAt: -1 })

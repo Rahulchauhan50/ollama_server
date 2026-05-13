@@ -15,8 +15,9 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(8, 'JWT_REFRESH_SECRET must be at least 8 characters'),
   OLLAMA_BASE_URL: z.string().url('Invalid Ollama base URL'),
   OLLAMA_CHAT_MODEL_DEFAULT: z.string().default('llama2'),
-  OLLAMA_EMBEDDING_MODEL: z.string().default('nomic-embed-text'),
-  ALLOWED_CHAT_MODELS: z.string().default('gemma2:9b,gemma2:2b,qwen2.5-coder:1.5b').transform(
+  OLLAMA_EMBEDDING_MODEL: z.string().default('gemma2:2b'),
+  OLLAMA_API_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
+  ALLOWED_CHAT_MODELS: z.string().default('gemma2:9b,gemma2:2b,qwen2.5-coder:1.5b,llama2').transform(
     (val) => val.split(',').map((m) => m.trim())
   ),
   // Legacy/backward compatibility variables
@@ -56,6 +57,7 @@ module.exports = {
     defaultChatModel: config.OLLAMA_CHAT_MODEL_DEFAULT,
     embeddingModel: config.OLLAMA_EMBEDDING_MODEL,
     allowedChatModels: config.ALLOWED_CHAT_MODELS,
+    timeoutMs: config.OLLAMA_API_TIMEOUT_MS,
     // Backward compat
     apiUrl: config.OLLAMA_API_URL,
     username: config.OLLAMA_USERNAME,

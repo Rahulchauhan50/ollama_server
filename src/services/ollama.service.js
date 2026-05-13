@@ -14,7 +14,7 @@ const OllamaService = {
       const url = `${base.replace(/\/$/, '')}/api/tags`;
 
       // Build axios config with optional basic auth
-      const axiosConfig = { timeout: 5000 };
+      const axiosConfig = { timeout: config.ollama.timeoutMs };
       if (config.ollama.username && config.ollama.password) {
         axiosConfig.auth = {
           username: config.ollama.username,
@@ -70,7 +70,7 @@ const OllamaService = {
       const url = `${base.replace(/\/$/, '')}/api/chat`;
 
       // Build axios config with optional basic auth
-      const axiosConfig = { timeout: 30000 };
+      const axiosConfig = { timeout: config.ollama.timeoutMs };
       if (config.ollama.username && config.ollama.password) {
         axiosConfig.auth = {
           username: config.ollama.username,
@@ -107,7 +107,7 @@ const OllamaService = {
       const url = `${base.replace(/\/$/, '')}/api/generate`;
 
       // Build axios config with optional basic auth
-      const axiosConfig = { timeout: 30000 };
+      const axiosConfig = { timeout: config.ollama.timeoutMs };
       if (config.ollama.username && config.ollama.password) {
         axiosConfig.auth = {
           username: config.ollama.username,
@@ -133,13 +133,19 @@ const OllamaService = {
     }
   },
 
-  async createEmbedding(model, input) {
+  async createEmbedding(modelOrPayload, maybeInput) {
     try {
+      const payloadInput = typeof modelOrPayload === 'object' && modelOrPayload !== null
+        ? modelOrPayload
+        : { model: modelOrPayload, input: maybeInput };
+
+      const { model, input } = payloadInput;
+
       const base = config.ollama.baseUrl;
       const url = `${base.replace(/\/$/, '')}/api/embed`;
 
       // Build axios config with optional basic auth
-      const axiosConfig = { timeout: 10000 };
+      const axiosConfig = { timeout: config.ollama.timeoutMs };
       if (config.ollama.username && config.ollama.password) {
         axiosConfig.auth = {
           username: config.ollama.username,
@@ -151,14 +157,13 @@ const OllamaService = {
         model,
         input,
       };
-
       const res = await axios.post(url, payload, axiosConfig);
       return res.data;
     } catch (error) {
       if (error.isCustom) {
         throw error;
       }
-      throw AppError.serviceUnavailable(`Failed to create embedding with Ollama: ${error.message}`);
+      throw AppError.serviceUnavailable(`Failed to create embedding with Ollama: ${error}`);
     }
   },
 
@@ -168,7 +173,7 @@ const OllamaService = {
       const url = `${base.replace(/\/$/, '')}/api/ps`;
 
       // Build axios config with optional basic auth
-      const axiosConfig = { timeout: 5000 };
+      const axiosConfig = { timeout: config.ollama.timeoutMs };
       if (config.ollama.username && config.ollama.password) {
         axiosConfig.auth = {
           username: config.ollama.username,
@@ -200,7 +205,7 @@ const OllamaService = {
       const url = `${base.replace(/\/$/, '')}/api/tags`;
 
       // Build axios config with optional basic auth
-      const axiosConfig = { timeout: 5000 };
+      const axiosConfig = { timeout: config.ollama.timeoutMs };
       if (config.ollama.username && config.ollama.password) {
         axiosConfig.auth = {
           username: config.ollama.username,
