@@ -7,6 +7,7 @@ class AppError extends Error {
     this.details = details;
     this.timestamp = new Date().toISOString();
     this.requestId = requestId || 'unknown';
+    this.isCustom = true;
 
     // Maintains proper stack trace for where our error was thrown
     Error.captureStackTrace(this, this.constructor);

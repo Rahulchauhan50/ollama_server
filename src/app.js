@@ -7,6 +7,8 @@ const { isConnected } = require('./config/database');
 const { requestLogger } = require('./middleware/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/error');
 const { ApiResponse } = require('./utils');
+const authRoutes = require('./routes/auth.routes');
+const modelsRoutes = require('./routes/models.routes');
 
 const app = express();
 
@@ -19,6 +21,10 @@ app.use(cookieParser());
 
 // Middleware - Logging
 app.use(requestLogger);
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/models', modelsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

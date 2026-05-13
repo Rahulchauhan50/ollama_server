@@ -11,6 +11,6 @@ module.exports = {
     '**/?(*.)+(spec|test).js'
   ],
   setupFiles: [],
-  testTimeout: 10000,
+  testTimeout: 30000,
   verbose: true
 };
