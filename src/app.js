@@ -9,6 +9,7 @@ const { errorHandler, notFoundHandler } = require('./middleware/error');
 const { ApiResponse } = require('./utils');
 const authRoutes = require('./routes/auth.routes');
 const modelsRoutes = require('./routes/models.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use(requestLogger);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/models', modelsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -10,20 +10,40 @@ const OllamaService = {
         return (config.ollama.allowedChatModels || []).map((name) => ({ name }));
       }
 
-      const base = config.ollama.apiUrl || config.ollama.baseUrl;
+      const base = config.ollama.baseUrl;
       const url = `${base.replace(/\/$/, '')}/api/tags`;
 
-      const res = await axios.get(url, { timeout: 5000 });
+      // Build axios config with optional basic auth
+      const axiosConfig = { timeout: 5000 };
+      if (config.ollama.username && config.ollama.password) {
+        axiosConfig.auth = {
+          username: config.ollama.username,
+          password: config.ollama.password,
+        };
+      }
+
+      const res = await axios.get(url, axiosConfig);
       // Expect response data to have tags or models list
       const data = res.data;
+
+      console.log('Ollama /api/tags response:', data.models[0].model);
 
       // Ollama /api/tags typically returns an array of tag strings or objects
       if (Array.isArray(data)) {
         return data.map((item) => {
-          if (typeof item === 'string') return { name: item };
-          if (item && item.name) return { name: item.name };
+          if (typeof item === 'string') {
+            return { name: item };
+          }
+          if (item && item.name) {
+            return { name: item.name };
+          }
           return { name: String(item) };
         });
+      }
+
+      // Handle response with 'models' property (newer Ollama versions)
+      if (data && Array.isArray(data.models)) {
+        return data.models.map((m) => ({ model: typeof m === 'string' ? m : m.model }));
       }
 
       // Fallback if data has a 'tags' property
@@ -33,8 +53,146 @@ const OllamaService = {
 
       throw AppError.serviceUnavailable('Unexpected Ollama response for listModels');
     } catch (error) {
-      if (error.isCustom) throw error;
+      if (error.isCustom) {
+        throw error;
+      }
       throw AppError.serviceUnavailable(`Failed to list models from Ollama: ${error.message}`);
+    }
+  },
+
+  async chat(model, messages, options = {}) {
+    try {
+      // Validate model is allowed
+      const allowedModels = config.ollama.allowedChatModels || [];
+      if (!allowedModels.includes(model)) {
+        throw AppError.badRequest(`Model "${model}" not in allowed list`);
+      }
+
+      const base = config.ollama.baseUrl;
+      const url = `${base.replace(/\/$/, '')}/api/chat`;
+
+      // Build axios config with optional basic auth
+      const axiosConfig = { timeout: 30000 };
+      if (config.ollama.username && config.ollama.password) {
+        axiosConfig.auth = {
+          username: config.ollama.username,
+          password: config.ollama.password,
+        };
+      }
+
+      const payload = {
+        model,
+        messages,
+        stream: false,
+        ...options,
+      };
+
+      const res = await axios.post(url, payload, axiosConfig);
+      return res.data;
+    } catch (error) {
+      if (error.isCustom) {
+        throw error;
+      }
+      throw AppError.serviceUnavailable(`Failed to chat with Ollama: ${error.message}`);
+    }
+  },
+
+  async generate(model, prompt, system = '', options = {}) {
+    try {
+      // Validate model is allowed
+      const allowedModels = config.ollama.allowedChatModels || [];
+      if (!allowedModels.includes(model)) {
+        throw AppError.badRequest(`Model "${model}" not in allowed list`);
+      }
+
+      const base = config.ollama.baseUrl;
+      const url = `${base.replace(/\/$/, '')}/api/generate`;
+
+      // Build axios config with optional basic auth
+      const axiosConfig = { timeout: 30000 };
+      if (config.ollama.username && config.ollama.password) {
+        axiosConfig.auth = {
+          username: config.ollama.username,
+          password: config.ollama.password,
+        };
+      }
+
+      const payload = {
+        model,
+        prompt,
+        system: system || undefined,
+        stream: false,
+        ...options,
+      };
+
+      const res = await axios.post(url, payload, axiosConfig);
+      return res.data;
+    } catch (error) {
+      if (error.isCustom) {
+        throw error;
+      }
+      throw AppError.serviceUnavailable(`Failed to generate with Ollama: ${error.message}`);
+    }
+  },
+
+  async createEmbedding(model, input) {
+    try {
+      const base = config.ollama.baseUrl;
+      const url = `${base.replace(/\/$/, '')}/api/embed`;
+
+      // Build axios config with optional basic auth
+      const axiosConfig = { timeout: 10000 };
+      if (config.ollama.username && config.ollama.password) {
+        axiosConfig.auth = {
+          username: config.ollama.username,
+          password: config.ollama.password,
+        };
+      }
+
+      const payload = {
+        model,
+        input,
+      };
+
+      const res = await axios.post(url, payload, axiosConfig);
+      return res.data;
+    } catch (error) {
+      if (error.isCustom) {
+        throw error;
+      }
+      throw AppError.serviceUnavailable(`Failed to create embedding with Ollama: ${error.message}`);
+    }
+  },
+
+  async listRunningModels() {
+    try {
+      const base = config.ollama.baseUrl;
+      const url = `${base.replace(/\/$/, '')}/api/ps`;
+
+      // Build axios config with optional basic auth
+      const axiosConfig = { timeout: 5000 };
+      if (config.ollama.username && config.ollama.password) {
+        axiosConfig.auth = {
+          username: config.ollama.username,
+          password: config.ollama.password,
+        };
+      }
+
+      const res = await axios.get(url, axiosConfig);
+      const data = res.data;
+
+      // Handle response with 'models' property
+      if (data && Array.isArray(data.models)) {
+        return data.models;
+      }
+
+      // Return empty array if no models running
+      return [];
+    } catch (error) {
+      if (error.isCustom) {
+        throw error;
+      }
+      throw AppError.serviceUnavailable(`Failed to list running models from Ollama: ${error.message}`);
     }
   },
 };

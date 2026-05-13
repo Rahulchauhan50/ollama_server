@@ -10,11 +10,11 @@ const ModelsController = {
 
     const allowed = (config.ollama.allowedChatModels || []).map((m) => m.toString());
 
-    const filtered = all.filter((m) => allowed.includes(m.name));
+    const filtered = all.filter((m) => allowed.includes(m.model));
 
-    const models = filtered.map((m, idx) => ({
-      name: m.name,
-      isDefault: m.name === config.ollama.defaultChatModel,
+    const models = filtered.map((m) => ({
+      name: m.model,
+      isDefault: m.model === config.ollama.defaultChatModel,
     }));
 
     const response = ApiResponse.success({ models }, 'Model list', 200, requestId);

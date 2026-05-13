@@ -1,5 +1,10 @@
 const { z } = require('zod');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({
+  path: process.env.NODE_ENV === 'test'
+    ? path.resolve(__dirname, '../../.env.test')
+    : path.resolve(__dirname, '../../.env'),
+});
 
 // Zod schema for environment variables
 const envSchema = z.object({
@@ -11,7 +16,7 @@ const envSchema = z.object({
   OLLAMA_BASE_URL: z.string().url('Invalid Ollama base URL'),
   OLLAMA_CHAT_MODEL_DEFAULT: z.string().default('llama2'),
   OLLAMA_EMBEDDING_MODEL: z.string().default('nomic-embed-text'),
-  ALLOWED_CHAT_MODELS: z.string().default('llama2,neural-chat,mistral').transform(
+  ALLOWED_CHAT_MODELS: z.string().default('gemma2:9b,gemma2:2b,qwen2.5-coder:1.5b').transform(
     (val) => val.split(',').map((m) => m.trim())
   ),
   // Legacy/backward compatibility variables
