@@ -25,7 +25,7 @@ app.use(helmet());
 const allowedOrigins = [
   'http://localhost:5173', // Development
   'http://localhost:3000', // Development
-  'https://chat.rahulcodes.tech'
+  'https://vertext.rahulcodes.tech'
 ];
 app.use(
   cors({
