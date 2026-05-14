@@ -4,6 +4,7 @@ const { AppError } = require('../utils');
 const config = require('../config');
 const MessageRepository = require('../repositories/message.repository');
 const ConversationRepository = require('../repositories/conversation.repository');
+const EmbeddingService = require('../services/embedding.service');
 const OllamaService = require('../services/ollama.service');
 const { buildChatMessages, parseAssistantContent } = require('./chat.controller');
 const { z } = require('zod');
@@ -32,11 +33,40 @@ const validationError = (validation) => AppError.validation('Validation failed',
   fields: validation.error.flatten().fieldErrors,
 });
 
+const attachUserMessageEmbedding = async (message, content) => {
+  try {
+    const embedding = await EmbeddingService.createTextEmbedding(content);
+    return MessageRepository.updateEmbeddings(message._id, {
+      embedding,
+      embeddingModel: config.ollama.embeddingModel,
+      embeddingDim: embedding.length,
+      isMemoryEligible: true,
+    });
+  } catch (error) {
+    await MessageRepository.updateMetadata(message._id, {
+      ...(message.metadata || {}),
+      embeddingFailed: true,
+      embeddingErrorCode: error.code || 'EMBEDDING_UNAVAILABLE',
+      embeddingErrorMessage: error.message,
+    });
+
+    return {
+      ...message,
+      metadata: {
+        ...(message.metadata || {}),
+        embeddingFailed: true,
+        embeddingErrorCode: error.code || 'EMBEDDING_UNAVAILABLE',
+        embeddingErrorMessage: error.message,
+      },
+    };
+  }
+};
+
 const handleAddMessage = async (req, res) => {
   const { conversationId } = req.params;
 
   // Verify conversation exists and belongs to user
-  const conversation = await ConversationRepository.findById(conversationId, req.user._id);
+  let conversation = await ConversationRepository.findById(conversationId, req.user._id);
   if (!conversation) {
     throw AppError.notFound('Conversation not found');
   }
@@ -62,13 +92,17 @@ const handleAddMessage = async (req, res) => {
     }
 
     const userMessage = await MessageRepository.create(conversationId, {
+      userIdStr: req.user._id?.toString?.() || String(req.user._id),
       role: 'user',
       content: data.content,
       metadata: {
         modelUsed: model,
         temperature: data.temperature,
       },
+      skipEmbedding: true,
     });
+
+    const enrichedUserMessage = await attachUserMessageEmbedding(userMessage, data.content);
 
     const recentMessages = await MessageRepository.findByConversationIdBatch(conversationId, 6);
     const orderedMessages = recentMessages.reverse().map((message) => ({
@@ -106,6 +140,7 @@ const handleAddMessage = async (req, res) => {
     }
 
     const assistantMessage = await MessageRepository.create(conversationId, {
+      userIdStr: req.user._id?.toString?.() || String(req.user._id),
       role: 'assistant',
       content: assistantContent,
       metadata: {
@@ -135,8 +170,8 @@ const handleAddMessage = async (req, res) => {
     const response = new ApiResponse(
       201,
       {
-        messages: [userMessage, assistantMessage],
-        userMessage,
+        messages: [enrichedUserMessage, assistantMessage],
+        userMessage: enrichedUserMessage,
         assistantMessage,
         reply: assistantContent,
         conversation,
@@ -157,11 +192,19 @@ const handleAddMessage = async (req, res) => {
   const data = validation.data;
 
   // Create message
-  const message = await MessageRepository.create(conversationId, data);
+  const message = await MessageRepository.create(conversationId, {
+    userIdStr: req.user._id?.toString?.() || String(req.user._id),
+    ...data,
+    skipEmbedding: data.role === 'user',
+  });
+
+  const savedMessage = data.role === 'user'
+    ? await attachUserMessageEmbedding(message, data.content)
+    : message;
 
   res.status(201).json(
     ApiResponse.created(
-      { message },
+      { message: savedMessage },
       'Message created'
     )
   );

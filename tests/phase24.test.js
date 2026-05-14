@@ -1,15 +1,18 @@
 jest.mock('../src/repositories/conversation.repository', () => ({
   findById: jest.fn(),
+  updateById: jest.fn(),
 }));
 
 jest.mock('../src/repositories/message.repository', () => ({
   create: jest.fn(),
   findByConversationIdBatch: jest.fn(),
   updateMetadata: jest.fn(),
+  updateEmbeddings: jest.fn(),
 }));
 
 jest.mock('../src/services/ollama.service', () => ({
   chat: jest.fn(),
+  generate: jest.fn(),
 }));
 
 const ConversationRepository = require('../src/repositories/conversation.repository');
@@ -36,6 +39,13 @@ describe('Phase 24: Chat Error Handling', () => {
       _id: 'conv123',
       userId: 'user123',
       model: 'llama2',
+      title: 'New Conversation',
+    });
+    ConversationRepository.updateById.mockResolvedValue({
+      _id: 'conv123',
+      userId: 'user123',
+      model: 'llama2',
+      title: 'Short title',
     });
     MessageRepository.create.mockImplementation(async (_conversationId, data) => ({
       _id: data.role === 'user' ? 'msg-user' : 'msg-assistant',
@@ -48,8 +58,21 @@ describe('Phase 24: Chat Error Handling', () => {
       { role: 'assistant', content: 'Previous assistant reply' },
     ]);
     MessageRepository.updateMetadata.mockResolvedValue({});
+    MessageRepository.updateEmbeddings.mockResolvedValue({
+      _id: 'msg-user',
+      role: 'user',
+      content: 'Hello, who are you?',
+      embedding: [0.1, 0.2, 0.3],
+      embeddings: [0.1, 0.2, 0.3],
+      embeddingModel: 'nomic-embed-text',
+      embeddingDim: 3,
+      isMemoryEligible: true,
+    });
     OllamaService.chat.mockResolvedValue({
       message: { role: 'assistant', content: 'I am an AI assistant.' },
+    });
+    OllamaService.generate.mockResolvedValue({
+      message: { content: 'Short title' },
     });
   });
 
@@ -102,6 +125,7 @@ describe('Phase 24: Chat Error Handling', () => {
     expect(error).toBeTruthy();
     expect(error.statusCode).toBe(503);
     expect(error.code).toBe('SERVICE_UNAVAILABLE');
+    expect(MessageRepository.updateEmbeddings).toHaveBeenCalledTimes(1);
     expect(MessageRepository.updateMetadata).toHaveBeenCalledWith(
       'msg-user',
       expect.objectContaining({
@@ -120,6 +144,7 @@ describe('Phase 24: Chat Error Handling', () => {
     expect(error).toBeTruthy();
     expect(error.statusCode).toBe(503);
     expect(error.code).toBe('SERVICE_UNAVAILABLE');
+    expect(MessageRepository.updateEmbeddings).toHaveBeenCalledTimes(1);
     expect(MessageRepository.updateMetadata).toHaveBeenCalledWith(
       'msg-user',
       expect.objectContaining({

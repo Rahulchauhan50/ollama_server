@@ -4,18 +4,32 @@ const EmbeddingService = require('../services/embedding.service');
 
 const MessageRepository = {
   async create(conversationId, data) {
-    let embeddings = data.embeddings || null;
+    const {
+      skipEmbedding = false,
+      embedding: explicitEmbedding = null,
+      embeddings: explicitEmbeddings = null,
+      ...messageData
+    } = data;
 
-    if (!embeddings && data.role === 'user') {
-      embeddings = await EmbeddingService.generateEmbeddings(data.content);
+    let embedding = explicitEmbedding || explicitEmbeddings || null;
+    let embeddings = explicitEmbeddings || explicitEmbedding || null;
+
+    if (!skipEmbedding && !embedding && !embeddings && messageData.role === 'user') {
+      embedding = await EmbeddingService.generateEmbeddings(messageData.content);
+      embeddings = embedding;
     }
 
     const message = new Message({
       conversationId,
-      role: data.role,
-      content: data.content,
-      metadata: data.metadata,
+      userIdStr: messageData.userIdStr || null,
+      role: messageData.role,
+      content: messageData.content,
+      metadata: messageData.metadata,
+      embedding,
       embeddings,
+      embeddingModel: messageData.embeddingModel || null,
+      embeddingDim: messageData.embeddingDim || null,
+      isMemoryEligible: messageData.isMemoryEligible || false,
     });
     const saved = await message.save();
 
@@ -68,9 +82,23 @@ const MessageRepository = {
   },
 
   async updateEmbeddings(messageId, embeddings) {
+    const update = Array.isArray(embeddings)
+      ? {
+          embedding: embeddings,
+          embeddings,
+          embeddingDim: embeddings.length,
+        }
+      : {
+          embedding: embeddings.embedding || embeddings.embeddings || null,
+          embeddings: embeddings.embedding || embeddings.embeddings || null,
+          embeddingModel: embeddings.embeddingModel,
+          embeddingDim: embeddings.embeddingDim,
+          isMemoryEligible: embeddings.isMemoryEligible,
+        };
+
     return Message.findByIdAndUpdate(
       messageId,
-      { embeddings },
+      update,
       { new: true }
     );
   },
@@ -106,7 +134,10 @@ const MessageRepository = {
     // Get all messages in conversation that have embeddings
     const messages = await Message.find({
       conversationId,
-      embeddings: { $exists: true, $ne: null },
+      $or: [
+        { embedding: { $exists: true, $ne: null } },
+        { embeddings: { $exists: true, $ne: null } },
+      ],
     })
       .sort({ createdAt: -1 })
       .lean();
@@ -114,7 +145,10 @@ const MessageRepository = {
     // Use embedding service to find similar messages
     const similarMessages = EmbeddingService.findSimilarEmbeddings(
       queryEmbedding,
-      messages,
+      messages.map((message) => ({
+        ...message,
+        embeddings: message.embedding || message.embeddings,
+      })),
       threshold
     );
 
@@ -132,11 +166,47 @@ const MessageRepository = {
   async findWithEmbeddingsByConversationId(conversationId, limit = 50) {
     return Message.find({
       conversationId,
-      embeddings: { $exists: true, $ne: null },
+      $or: [
+        { embedding: { $exists: true, $ne: null } },
+        { embeddings: { $exists: true, $ne: null } },
+      ],
     })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
+  },
+
+  async findWithEmbeddingsByUserId(userIdStr, limit = 50) {
+    return Message.find({
+      userIdStr,
+      isMemoryEligible: true,
+      $or: [
+        { embedding: { $exists: true, $ne: null } },
+        { embeddings: { $exists: true, $ne: null } },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+  },
+
+  async findSimilarByUserId(userIdStr, queryEmbedding, options = {}) {
+    const {
+      limit = 10,
+      threshold = 0.5,
+    } = options;
+
+    const messages = await this.findWithEmbeddingsByUserId(userIdStr, limit * 5);
+    const similarMessages = EmbeddingService.findSimilarEmbeddings(
+      queryEmbedding,
+      messages.map((message) => ({
+        ...message,
+        embeddings: message.embedding || message.embeddings,
+      })),
+      threshold
+    );
+
+    return similarMessages.slice(0, limit);
   },
 };
 

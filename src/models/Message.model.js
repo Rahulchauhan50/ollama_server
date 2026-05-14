@@ -9,6 +9,11 @@ const messageSchema = new mongoose.Schema(
       required: [true, 'Conversation ID is required'],
       index: true,
     },
+    userIdStr: {
+      type: String,
+      default: null,
+      index: true,
+    },
     role: {
       type: String,
       enum: {
@@ -22,15 +27,36 @@ const messageSchema = new mongoose.Schema(
       required: [true, 'Message content is required'],
       maxlength: [10000, 'Message content must not exceed 10000 characters'],
     },
+    embedding: {
+      type: [Number],
+      default: null,
+      // Primary vector field used for memory search phases
+    },
     embeddings: {
       type: [Number],
       default: null,
       // Will be indexed as vector in Phase 20
     },
+    embeddingModel: {
+      type: String,
+      default: null,
+    },
+    embeddingDim: {
+      type: Number,
+      default: null,
+    },
+    isMemoryEligible: {
+      type: Boolean,
+      default: false,
+    },
     metadata: {
       tokenCount: Number,
       modelUsed: String,
       temperature: Number,
+      aiFailed: Boolean,
+      aiErrorCode: String,
+      aiErrorMessage: String,
+      embeddingFailed: Boolean,
     },
   },
   {
@@ -42,6 +68,7 @@ const messageSchema = new mongoose.Schema(
 // Index for fast message retrieval
 messageSchema.index({ conversationId: 1, createdAt: -1 });
 messageSchema.index({ conversationId: 1 });
+messageSchema.index({ userIdStr: 1, role: 1, isMemoryEligible: 1 });
 
 const Message = mongoose.model('Message', messageSchema);
 

@@ -1,14 +1,17 @@
 jest.mock('../src/repositories/conversation.repository', () => ({
   findById: jest.fn(),
+  updateById: jest.fn(),
 }));
 
 jest.mock('../src/repositories/message.repository', () => ({
   create: jest.fn(),
   findByConversationIdBatch: jest.fn(),
+  updateEmbeddings: jest.fn(),
 }));
 
 jest.mock('../src/services/ollama.service', () => ({
   chat: jest.fn(),
+  generate: jest.fn(),
 }));
 
 const ConversationRepository = require('../src/repositories/conversation.repository');
@@ -35,6 +38,13 @@ describe('Phase 23: Simple Chat Without RAG', () => {
       _id: 'conv123',
       userId: 'user123',
       model: 'llama2',
+      title: 'New Conversation',
+    });
+    ConversationRepository.updateById.mockResolvedValue({
+      _id: 'conv123',
+      userId: 'user123',
+      model: 'llama2',
+      title: 'Short title',
     });
     MessageRepository.create.mockImplementation(async (_conversationId, data) => ({
       _id: data.role === 'user' ? 'msg-user' : 'msg-assistant',
@@ -46,8 +56,21 @@ describe('Phase 23: Simple Chat Without RAG', () => {
       { role: 'assistant', content: 'Previous assistant reply' },
       { role: 'user', content: 'Previous user question' },
     ]);
+    MessageRepository.updateEmbeddings.mockResolvedValue({
+      _id: 'msg-user',
+      role: 'user',
+      content: 'Hello, who are you?',
+      embedding: [0.1, 0.2, 0.3],
+      embeddings: [0.1, 0.2, 0.3],
+      embeddingModel: 'nomic-embed-text',
+      embeddingDim: 3,
+      isMemoryEligible: true,
+    });
     OllamaService.chat.mockResolvedValue({
       message: { role: 'assistant', content: 'I am an AI assistant.' },
+    });
+    OllamaService.generate.mockResolvedValue({
+      message: { content: 'Short title' },
     });
   });
 
@@ -56,6 +79,7 @@ describe('Phase 23: Simple Chat Without RAG', () => {
 
     expect(ConversationRepository.findById).toHaveBeenCalledWith('conv123', 'user123');
     expect(MessageRepository.create).toHaveBeenCalledTimes(2);
+    expect(MessageRepository.updateEmbeddings).toHaveBeenCalledTimes(1);
     expect(MessageRepository.findByConversationIdBatch).toHaveBeenCalledWith('conv123', 6);
     expect(OllamaService.chat).toHaveBeenCalledTimes(1);
     expect(OllamaService.chat.mock.calls[0][0]).toBe('llama2');

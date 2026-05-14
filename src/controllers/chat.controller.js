@@ -92,6 +92,7 @@ const handleChatConversation = async (req, res) => {
   }));
 
   const userMessage = await MessageRepository.create(conversationId, {
+    userIdStr: req.user._id?.toString?.() || String(req.user._id),
     role: 'user',
     content: data.message,
     metadata: {
@@ -110,6 +111,7 @@ const handleChatConversation = async (req, res) => {
   const assistantContent = parseAssistantContent(chatResponse);
 
   const assistantMessage = await MessageRepository.create(conversationId, {
+    userIdStr: req.user._id?.toString?.() || String(req.user._id),
     role: 'assistant',
     content: assistantContent,
     metadata: {
