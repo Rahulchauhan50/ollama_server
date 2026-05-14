@@ -54,6 +54,10 @@ class AppError extends Error {
     return new AppError(message, 422, 'VALIDATION_ERROR', details, requestId);
   }
 
+  static tooManyRequests(message = 'Too Many Requests', details = null, requestId = null) {
+    return new AppError(message, 429, 'RATE_LIMITED', details, requestId);
+  }
+
   static internal(message = 'Internal Server Error', details = null, requestId = null) {
     return new AppError(message, 500, 'INTERNAL_ERROR', details, requestId);
   }

@@ -86,11 +86,12 @@ app.get('/api/config', (req, res) => {
     nodeEnv: config.nodeEnv,
     port: config.port,
     mongoUri: config.mongoUri.replace(/:[^:]*@/, ':****@'),
-    ollama: {
-      baseUrl: config.ollama.baseUrl,
-      defaultChatModel: config.ollama.defaultChatModel,
-      embeddingModel: config.ollama.embeddingModel,
-      allowedChatModels: config.ollama.allowedChatModels,
+    ai: {
+      provider: config.ai.providerName,
+      providerKey: config.ai.providerKey,
+      defaultChatModel: config.ai.defaultChatModel,
+      embeddingModel: config.ai.embeddingModel,
+      allowedChatModels: config.ai.allowedChatModels,
     },
   }, 'Configuration', 200, req.requestId);
   res.status(response.statusCode).json(response.toJSON());
@@ -111,7 +112,7 @@ app.get('/api/version', (req, res) => {
 app.get('/', (req, res) => {
   const response = ApiResponse.success(
     null,
-    'Ollama Backend API v1.0',
+    'AI Backend API v1.0',
     200,
     req.requestId
   );

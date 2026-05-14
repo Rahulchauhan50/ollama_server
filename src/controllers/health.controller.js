@@ -1,15 +1,15 @@
 const { asyncHandler } = require('../utils');
 const { ApiResponse } = require('../utils');
-const OllamaService = require('../services/ollama.service');
+const AIService = require('../services/ai.service');
 const config = require('../config');
 const { AppError } = require('../utils');
 
 const checkAiHealth = asyncHandler(async (req, res) => {
-  const health = await OllamaService.healthCheck();
+  const health = await AIService.healthCheck();
+  const providerName = config.ai.providerName;
 
   if (!health.reachable) {
-    throw AppError.serviceUnavailable('Ollama server is not reachable', {
-      baseUrl: config.ollama.baseUrl,
+    throw AppError.serviceUnavailable(`${providerName} API is not reachable`, {
       reason: health.reason,
     });
   }
@@ -18,9 +18,10 @@ const checkAiHealth = asyncHandler(async (req, res) => {
     200,
     'AI server health check completed',
     {
-      ollama: 'reachable',
+      provider: providerName,
+      reachable: true,
       status: 'healthy',
-      baseUrl: config.ollama.baseUrl,
+      model: config.ai.defaultChatModel,
     }
   );
   res.status(200).json(response);

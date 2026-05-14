@@ -1,16 +1,15 @@
-const OllamaService = require('./ollama.service');
+const AIService = require('./ai.service');
 const { AppError } = require('../utils');
 const config = require('../config');
 
 /**
  * Embedding Service
- * Handles generation and management of message embeddings for semantic search
+ * Handles generation and management of message embeddings for semantic search.
+ * Now backed by the Gemini embeddings API (gemini-embedding-001 / gemini-embedding-2).
  */
 const EmbeddingService = {
   /**
    * Create a text embedding for the provided text.
-   * This is the phase 25 entry point and keeps the old generateEmbeddings
-   * method working for earlier callers.
    * @param {string} text
    * @returns {Promise<number[]>}
    */
@@ -21,34 +20,43 @@ const EmbeddingService = {
 
     try {
       if (config.isTest) {
+        // Deterministic fake embedding for unit tests
         const seed = Array.from(text)
           .map((char) => char.charCodeAt(0))
           .reduce((sum, code) => sum + code, 0);
 
-        return Array.from({ length: 384 }, (_, index) => {
+        return Array.from({ length: 768 }, (_, index) => {
           const value = Math.sin(seed + index) * 10000;
           return value - Math.floor(value);
         });
       }
 
-      const embeddings = await OllamaService.createEmbedding({
-        model: config.ollama.embeddingModel,
+      const response = await AIService.createEmbedding({
+        model: config.ai.embeddingModel,
         input: text,
       });
 
-      if (Array.isArray(embeddings)) {
-        return embeddings;
+      // Normalize the provider response into a flat embedding vector.
+      if (response && Array.isArray(response.embeddings) && response.embeddings[0]) {
+        const embedding = response.embeddings[0];
+        if (Array.isArray(embedding.values)) {
+          return embedding.values;
+        }
+        if (Array.isArray(embedding)) {
+          return embedding;
+        }
       }
 
-      if (embeddings && Array.isArray(embeddings.embedding)) {
-        return embeddings.embedding;
+      // Fallback: flat array
+      if (Array.isArray(response)) {
+        return response;
       }
 
-      if (embeddings && Array.isArray(embeddings.embeddings)) {
-        return embeddings.embeddings[0] || embeddings.embeddings;
+      if (response && Array.isArray(response.embedding)) {
+        return response.embedding;
       }
 
-      throw AppError.internal('Invalid embedding response from Ollama');
+      throw AppError.internal('Invalid embedding response from the active AI provider');
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw AppError.internal(`Failed to create text embedding: ${error.message}`);
@@ -56,7 +64,7 @@ const EmbeddingService = {
   },
 
   /**
-   * Generate embeddings for text content
+   * Generate embeddings for text content (alias kept for backward compatibility).
    * @param {string} text - Text to generate embeddings for
    * @returns {Promise<number[]>} Array of embedding values
    */
@@ -65,7 +73,7 @@ const EmbeddingService = {
   },
 
   /**
-   * Calculate cosine similarity between two embedding vectors
+   * Calculate cosine similarity between two embedding vectors.
    * @param {number[]} vec1 - First embedding vector
    * @param {number[]} vec2 - Second embedding vector
    * @returns {number} Cosine similarity score (0 to 1)
@@ -100,7 +108,7 @@ const EmbeddingService = {
   },
 
   /**
-   * Find similar embeddings using cosine similarity
+   * Find similar embeddings using cosine similarity.
    * @param {number[]} queryEmbedding - Query embedding vector
    * @param {Object[]} candidates - Array of candidate objects with embeddings field
    * @param {number} threshold - Minimum similarity threshold (0 to 1)

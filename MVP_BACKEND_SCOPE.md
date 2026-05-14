@@ -121,3 +121,5 @@ A logged-in user can chat with an Ollama model, maintain multiple conversations,
 - Admin dashboard is secondary but helps with monitoring
 - Each phase must deliver working, testable code
 - Reference `backend_design_system_flow_architecture.md` for detailed architecture
+
+

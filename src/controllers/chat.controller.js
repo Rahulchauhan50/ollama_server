@@ -3,7 +3,7 @@ const { asyncHandler, ApiResponse, AppError } = require('../utils');
 const config = require('../config');
 const ConversationRepository = require('../repositories/conversation.repository');
 const MessageRepository = require('../repositories/message.repository');
-const OllamaService = require('../services/ollama.service');
+const AIService = require('../services/ai.service');
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(10000),
@@ -54,7 +54,7 @@ const parseAssistantContent = (chatResponse) => {
   const content = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
 
   if (!content) {
-    throw AppError.serviceUnavailable('Unexpected Ollama chat response');
+    throw AppError.serviceUnavailable('Unexpected AI chat response');
   }
 
   return content;
@@ -62,6 +62,7 @@ const parseAssistantContent = (chatResponse) => {
 
 const handleChatConversation = async (req, res) => {
   const { conversationId } = req.params;
+
 
   const conversation = await ConversationRepository.findById(conversationId, req.user._id);
   if (!conversation) {
@@ -76,8 +77,9 @@ const handleChatConversation = async (req, res) => {
   }
 
   const data = validation.data;
-  const allowedModels = config.ollama.allowedChatModels || [];
-  const model = data.model || conversation.model || config.ollama.defaultChatModel;
+  const providerConfig = config.ai.providerConfig;
+  const allowedModels = providerConfig.allowedChatModels || [];
+  const model = data.model || conversation.model || providerConfig.defaultChatModel;
 
   if (!allowedModels.includes(model)) {
     throw AppError.badRequest(`Model "${model}" not in allowed list`);
@@ -102,7 +104,7 @@ const handleChatConversation = async (req, res) => {
   });
   const assistantRequest = buildChatMessages(orderedHistory, data.message, data.system);
 
-  const chatResponse = await OllamaService.chat(model, assistantRequest, {
+  const chatResponse = await AIService.chat(model, assistantRequest, {
     temperature: data.temperature,
     top_p: data.top_p,
     max_tokens: data.max_tokens,
@@ -124,7 +126,7 @@ const handleChatConversation = async (req, res) => {
   try {
     if (!conversation.title || conversation.title === 'New Conversation') {
       const titlePrompt = `Create a short, descriptive conversation title (max 6 words) based on the following user message and AI reply. Return only the title.\n\nUser: ${data.message}\nAssistant: ${assistantContent}`;
-      const gen = await OllamaService.generate(model, titlePrompt, '', { max_tokens: 30 });
+      const gen = await AIService.generate(model, titlePrompt, '', { max_tokens: 30 });
       const generatedTitle = parseAssistantContent(gen)?.trim();
       if (generatedTitle && generatedTitle.length > 0) {
         const updatedConversation = await ConversationRepository.updateById(conversationId, req.user._id, { title: generatedTitle });

@@ -32,13 +32,14 @@ const createConversation = asyncHandler(async (req, res) => {
   const data = validation.data;
 
   // Validate model is allowed if provided
+  const providerConfig = config.ai.providerConfig;
   if (data.model) {
-    const allowedModels = config.ollama.allowedChatModels || [];
+    const allowedModels = providerConfig.allowedChatModels || [];
     if (!allowedModels.includes(data.model)) {
       throw AppError.badRequest(`Model "${data.model}" not in allowed list`);
     }
   } else {
-    data.model = config.ollama.defaultChatModel || 'llama2';
+    data.model = providerConfig.defaultChatModel || 'gemini-1.5-flash';
   }
 
   const conversation = await ConversationRepository.create(req.user._id, data);
@@ -102,8 +103,9 @@ const updateConversation = asyncHandler(async (req, res) => {
   const data = validation.data;
 
   // Validate model is allowed if provided
+  const providerConfig = config.ai.providerConfig;
   if (data.model) {
-    const allowedModels = config.ollama.allowedChatModels || [];
+    const allowedModels = providerConfig.allowedChatModels || [];
     if (!allowedModels.includes(data.model)) {
       throw AppError.badRequest(`Model "${data.model}" not in allowed list`);
     }

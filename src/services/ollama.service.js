@@ -60,6 +60,15 @@ const OllamaService = {
 
   async chat(model, messages, options = {}) {
     try {
+      if (config.isTest) {
+        return {
+          message: {
+            role: 'assistant',
+            content: 'Test mode response from Ollama',
+          },
+        };
+      }
+
       // Validate model is allowed
       const allowedModels = config.ollama.allowedChatModels || [];
       if (!allowedModels.includes(model)) {
@@ -97,6 +106,14 @@ const OllamaService = {
 
   async generate(model, prompt, system = '', options = {}) {
     try {
+      if (config.isTest) {
+        return {
+          message: {
+            content: 'Test mode generated text from Ollama',
+          },
+        };
+      }
+
       // Validate model is allowed
       const allowedModels = config.ollama.allowedChatModels || [];
       if (!allowedModels.includes(model)) {
@@ -135,6 +152,23 @@ const OllamaService = {
 
   async createEmbedding(modelOrPayload, maybeInput) {
     try {
+      if (config.isTest) {
+        const payloadInput = typeof modelOrPayload === 'object' && modelOrPayload !== null
+          ? modelOrPayload
+          : { model: modelOrPayload, input: maybeInput };
+
+        const seed = Array.from(String(payloadInput.input || ''))
+          .map((char) => char.charCodeAt(0))
+          .reduce((sum, code) => sum + code, 0);
+
+        const embedding = Array.from({ length: 768 }, (_, index) => {
+          const value = Math.sin(seed + index) * 10000;
+          return value - Math.floor(value);
+        });
+
+        return { embedding };
+      }
+
       const payloadInput = typeof modelOrPayload === 'object' && modelOrPayload !== null
         ? modelOrPayload
         : { model: modelOrPayload, input: maybeInput };
@@ -169,6 +203,10 @@ const OllamaService = {
 
   async listRunningModels() {
     try {
+      if (config.isTest) {
+        return [];
+      }
+
       const base = config.ollama.baseUrl;
       const url = `${base.replace(/\/$/, '')}/api/ps`;
 
@@ -201,6 +239,10 @@ const OllamaService = {
 
   async healthCheck() {
     try {
+      if (config.isTest) {
+        return { reachable: true };
+      }
+
       const base = config.ollama.baseUrl;
       const url = `${base.replace(/\/$/, '')}/api/tags`;
 

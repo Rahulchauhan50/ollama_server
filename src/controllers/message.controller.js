@@ -5,7 +5,7 @@ const config = require('../config');
 const MessageRepository = require('../repositories/message.repository');
 const ConversationRepository = require('../repositories/conversation.repository');
 const EmbeddingService = require('../services/embedding.service');
-const OllamaService = require('../services/ollama.service');
+const AIService = require('../services/ai.service');
 const { buildChatMessages, parseAssistantContent } = require('./chat.controller');
 const { z } = require('zod');
 
@@ -38,7 +38,7 @@ const attachUserMessageEmbedding = async (message, content) => {
     const embedding = await EmbeddingService.createTextEmbedding(content);
     return MessageRepository.updateEmbeddings(message._id, {
       embedding,
-      embeddingModel: config.ollama.embeddingModel,
+      embeddingModel: config.ai.embeddingModel,
       embeddingDim: embedding.length,
       isMemoryEligible: true,
     });
@@ -66,6 +66,7 @@ const handleAddMessage = async (req, res) => {
   const { conversationId } = req.params;
 
   // Verify conversation exists and belongs to user
+
   let conversation = await ConversationRepository.findById(conversationId, req.user._id);
   if (!conversation) {
     throw AppError.notFound('Conversation not found');
@@ -79,8 +80,9 @@ const handleAddMessage = async (req, res) => {
     }
 
     const data = validation.data;
-    const allowedModels = config.ollama.allowedChatModels || [];
-    const model = data.model || conversation.model || config.ollama.defaultChatModel;
+    const providerConfig = config.ai.providerConfig;
+    const allowedModels = providerConfig.allowedChatModels || [];
+    const model = data.model || conversation.model || providerConfig.defaultChatModel;
 
     if (!allowedModels.includes(model)) {
       throw new AppError(
@@ -114,7 +116,7 @@ const handleAddMessage = async (req, res) => {
     let assistantContent;
 
     try {
-      const chatResponse = await OllamaService.chat(model, chatMessages, {
+      const chatResponse = await AIService.chat(model, chatMessages, {
         temperature: data.temperature,
         top_p: data.top_p,
         max_tokens: data.max_tokens,
@@ -129,7 +131,7 @@ const handleAddMessage = async (req, res) => {
         aiErrorMessage: error.message,
       });
 
-      if (error.isCustom && error.statusCode === 503) {
+      if (error.isCustom) {
         throw error;
       }
 
@@ -153,7 +155,7 @@ const handleAddMessage = async (req, res) => {
     try {
       if (!conversation.title || conversation.title === 'New Conversation') {
         const titlePrompt = `Create a short, descriptive conversation title (max 6 words) based on the following user message and AI reply. Return only the title.\n\nUser: ${data.content}\nAssistant: ${assistantContent}`;
-        const gen = await OllamaService.generate(model, titlePrompt, '', { max_tokens: 30 });
+        const gen = await AIService.generate(model, titlePrompt, '', { max_tokens: 30 });
         const generatedTitle = parseAssistantContent(gen)?.trim();
         if (generatedTitle && generatedTitle.length > 0) {
           const updatedConversation = await ConversationRepository.updateById(conversationId, req.user._id, { title: generatedTitle });
@@ -214,6 +216,7 @@ const addMessage = asyncHandler(handleAddMessage);
 
 const handleGetMessages = async (req, res) => {
   const { conversationId } = req.params;
+
 
   // Verify conversation exists and belongs to user
   const conversation = await ConversationRepository.findById(conversationId, req.user._id);
