@@ -206,6 +206,167 @@ const AuthService = {
       throw AppError.internal(`Refresh token failed: ${error.message}`);
     }
   },
+
+  /**
+   * Sign in or sign up using Google ID token
+   * @param {string} idToken
+   */
+  async signInWithGoogle(idToken) {
+    try {
+      const GoogleService = require('./google.service');
+      const payload = await GoogleService.verifyIdToken(idToken);
+
+      const email = payload.email;
+      const name = payload.name || 'Google User';
+      const googleId = payload.sub;
+      const profileUrl = payload.picture || null;
+
+      if (!email) {
+        throw AppError.validation('Google token did not contain email');
+      }
+
+      // Check if user exists
+      let user = await UserRepository.findByEmail(email);
+
+      if (user) {
+        // If existing user, attach googleId if missing
+        if (!user.googleId && googleId) {
+          try {
+            user = await UserRepository.update(user._id, { isEmailVerified: true });
+            // directly set googleId via repository create/update may be required; use findById then set and save
+            const existing = await UserRepository.findById(user._id);
+            existing.googleId = googleId;
+            if (profileUrl && !existing.profileUrl) {
+              existing.profileUrl = profileUrl;
+            }
+            await existing.save();
+          } catch (err) {
+            // non-fatal
+          }
+        }
+      } else {
+        // Create new user; generate a random password hash so schema constraint satisfied
+        const PasswordService = require('./password.service');
+        const randomPassword = Math.random().toString(36);
+        const passwordHash = await PasswordService.hashPassword(randomPassword);
+
+        const newUser = await UserRepository.create({
+          name,
+          email,
+          passwordHash,
+          isEmailVerified: true,
+          googleId,
+          profileUrl,
+        });
+
+        user = newUser;
+      }
+
+      // Update last login
+      await UserRepository.updateLastLogin(user._id);
+
+      const accessToken = TokenService.signAccessToken(user);
+      const { refreshToken } = await TokenService.createRefreshSession(user._id.toString(), { email: user.email });
+
+      return {
+        user: user.toJSON ? user.toJSON() : user,
+        accessToken,
+        refreshToken,
+      };
+    } catch (error) {
+      if (error.isCustom) throw error;
+      throw AppError.internal(`Google sign-in failed: ${error.message}`);
+    }
+  },
+
+  /**
+   * Sign in or sign up using Google profile payload
+   * @param {object} payload - Google profile payload (must include email, sub)
+   */
+  async signInWithGooglePayload(payload) {
+    try {
+      const email = payload.email;
+      const name = payload.name || payload.full_name || 'Google User';
+      const googleId = payload.sub || payload.sub;
+      const profileUrl = payload.picture || null;
+
+      if (!email) {
+        throw AppError.validation('Google profile did not contain email');
+      }
+
+      // Check if user exists
+      let user = await UserRepository.findByEmail(email);
+
+      if (user) {
+        // attach googleId if missing
+        if (!user.googleId && googleId) {
+          try {
+            const existing = await UserRepository.findById(user._id);
+            existing.googleId = googleId;
+            existing.isEmailVerified = true;
+            if (profileUrl && !existing.profileUrl) {
+              existing.profileUrl = profileUrl;
+            }
+            await existing.save();
+            user = existing;
+          } catch (err) {
+            // ignore
+          }
+        }
+      } else {
+        const PasswordService = require('./password.service');
+        const randomPassword = Math.random().toString(36);
+        const passwordHash = await PasswordService.hashPassword(randomPassword);
+
+        const newUser = await UserRepository.create({
+          name,
+          email,
+          passwordHash,
+          isEmailVerified: true,
+          googleId,
+          profileUrl,
+        });
+
+        user = newUser;
+      }
+
+      // Update last login
+      await UserRepository.updateLastLogin(user._id);
+
+      const accessToken = TokenService.signAccessToken(user);
+      const { refreshToken } = await TokenService.createRefreshSession(user._id.toString(), { email: user.email });
+
+      return {
+        user: user.toJSON ? user.toJSON() : user,
+        accessToken,
+        refreshToken,
+      };
+    } catch (error) {
+      if (error.isCustom) throw error;
+      throw AppError.internal(`Google sign-in failed: ${error.message}`);
+    }
+  },
+
+  /**
+   * Sign in/up using Firebase token payload
+   * @param {object} payload - Firebase decoded token (contains uid, email, name, picture)
+   */
+  async signInWithFirebasePayload(payload) {
+    try {
+      // Map Firebase payload to similar shape as Google
+      const mapped = {
+        email: payload.email,
+        name: payload.name || payload.displayName || '',
+        sub: payload.uid,
+        picture: payload.picture || payload.photoURL,
+      };
+
+      return await this.signInWithGooglePayload(mapped);
+    } catch (error) {
+      if (error.isCustom) throw error;
+      throw AppError.internal(`Firebase sign-in failed: ${error.message}`);
+    }
+  },
 };
 
 module.exports = AuthService;

@@ -17,6 +17,19 @@ router.post('/signup', AuthController.signup);
  */
 router.post('/login', AuthController.login);
 
+// OAuth redirect flow
+router.get('/google', AuthController.googleRedirect);
+router.get('/google/callback', AuthController.googleCallback);
+
+/**
+ * POST /api/auth/google
+ * Sign in / Sign up using Google ID token
+ */
+router.post('/google', AuthController.google);
+
+// POST /api/auth/firebase - verify Firebase ID token
+router.post('/firebase', AuthController.firebase);
+
 /**
  * GET /api/auth/me
  * Get current user (requires authentication)

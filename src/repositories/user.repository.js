@@ -81,6 +81,7 @@ class UserRepository {
       'isActive',
       'isEmailVerified',
       'lastLoginAt',
+      'profileUrl',
     ];
     const filteredData = {};
 
