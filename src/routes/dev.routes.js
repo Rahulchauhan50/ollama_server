@@ -2,7 +2,7 @@ const express = require('express');
 const { ApiResponse, AppError } = require('../utils');
 const { requireAuth } = require('../middleware/auth.middleware');
 const EmbeddingService = require('../services/embedding.service');
-const MessageRepository = require('../repositories/message.repository');
+const MemoryService = require('../services/memory.service');
 
 const router = express.Router();
 
@@ -43,24 +43,22 @@ router.post('/memory/search', requireAuth, async (req, res, next) => {
       throw AppError.validation('Query must be a non-empty string');
     }
 
-    const queryEmbedding = await EmbeddingService.createTextEmbedding(query.trim());
-    const matches = await MessageRepository.findSimilarByUserId(
-      req.user._id?.toString?.() || String(req.user._id),
-      queryEmbedding,
-      {
-        limit: Number.isInteger(limit) ? limit : 10,
-        threshold: 0.5,
-      }
-    );
+    const memories = await MemoryService.retrieveRelevantMemories({
+      userId: req.user._id,
+      queryText: query.trim(),
+      limit: Number.isInteger(limit) ? limit : 10,
+      threshold: 0.5,
+    });
 
     const response = ApiResponse.success(
       {
         query,
-        matches: matches.map((message) => ({
-          id: message._id,
-          content: message.content,
-          role: message.role,
-          score: Number(message.similarity.toFixed(4)),
+        matches: memories.map((memory) => ({
+          id: memory.messageId,
+          content: memory.content,
+          role: memory.role,
+          score: memory.score,
+          createdAt: memory.createdAt,
         })),
       },
       'Memory search completed',
