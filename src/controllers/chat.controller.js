@@ -1,6 +1,10 @@
 const { z } = require('zod');
 const { asyncHandler, ApiResponse, AppError } = require('../utils');
 const config = require('../config');
+const RAGService = require('../services/rag.service');
+const RerankerService = require('../services/reranker.service');
+const MemoryService = require('../services/memory.service');
+const NBestService = require('../services/nbest.service');
 const ConversationRepository = require('../repositories/conversation.repository');
 const MessageRepository = require('../repositories/message.repository');
 const AIService = require('../services/ai.service');
@@ -12,6 +16,9 @@ const chatRequestSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   top_p: z.number().min(0).max(1).optional(),
   max_tokens: z.number().int().positive().optional(),
+  rag: z.boolean().optional(),
+  memoryLimit: z.number().int().min(1).max(50).optional(),
+  rerank: z.boolean().optional(),
   contextLimit: z.number().int().min(1).max(50).optional(),
 });
 
@@ -102,25 +109,119 @@ const handleChatConversation = async (req, res) => {
       temperature: data.temperature,
     },
   });
-  const assistantRequest = buildChatMessages(orderedHistory, data.message, data.system);
+  let assistantRequest;
+  if (data.rag) {
+    const ragBase = await RAGService.buildChatMessages({
+      userId: req.user._id?.toString?.() || String(req.user._id),
+      queryText: data.message,
+      recentMessages: orderedHistory,
+      memoryLimit: data.memoryLimit,
+    });
+    // Append the user's current message to the RAG messages
+    ragBase.push({ role: 'user', content: data.message });
+    assistantRequest = ragBase;
+  } else {
+    assistantRequest = buildChatMessages(orderedHistory, data.message, data.system);
+  }
 
-  const chatResponse = await AIService.chat(model, assistantRequest, {
-    temperature: data.temperature,
-    top_p: data.top_p,
-    max_tokens: data.max_tokens,
-  });
+  let assistantContent;
+  let assistantMessage;
 
-  const assistantContent = parseAssistantContent(chatResponse);
+  // If rerank requested with n-best > 1, generate multiple candidates and rerank them
+  if (data.rerank && Number(data.nbest) > 1) {
+    try {
+      // Generate n-best candidate answers
+      const systemMsg = assistantRequest.find((m) => m.role === 'system')?.content;
+      const candidates = await NBestService.generateNBest({
+        model,
+        prompt: data.message,
+        system: systemMsg,
+        n: Number(data.nbest),
+        max_tokens: data.max_tokens,
+        temperature: data.temperature,
+      });
 
-  const assistantMessage = await MessageRepository.create(conversationId, {
-    userIdStr: req.user._id?.toString?.() || String(req.user._id),
-    role: 'assistant',
-    content: assistantContent,
-    metadata: {
-      modelUsed: model,
+      const memories = await MemoryService.retrieveRelevantMemories({
+        userId: req.user._id?.toString?.() || String(req.user._id),
+        queryText: data.message,
+        limit: data.memoryLimit || 5,
+      });
+
+      const reranked = await RerankerService.rerankAnswers({
+        userId: req.user._id?.toString?.() || String(req.user._id),
+        queryText: data.message,
+        candidateAnswers: candidates,
+        memories,
+        model: model,
+        max_tokens: data.max_tokens,
+      });
+
+      const top = Array.isArray(reranked) && reranked.length > 0 ? reranked[0] : null;
+      assistantContent = top ? (top.rewrite || top.answer) : (candidates[0] || '');
+
+      assistantMessage = await MessageRepository.create(conversationId, {
+        userIdStr: req.user._id?.toString?.() || String(req.user._id),
+        role: 'assistant',
+        content: assistantContent,
+        metadata: {
+          modelUsed: model,
+          temperature: data.temperature,
+          rerankCandidates: candidates.length,
+        },
+      });
+    } catch (err) {
+      console.error('N-best rerank flow failed, falling back to single chat', err);
+    }
+  }
+
+  // Fallback: normal single-response chat if assistantContent not set
+  if (!assistantContent) {
+    const chatResponse = await AIService.chat(model, assistantRequest, {
       temperature: data.temperature,
-    },
-  });
+      top_p: data.top_p,
+      max_tokens: data.max_tokens,
+    });
+
+    assistantContent = parseAssistantContent(chatResponse);
+
+    assistantMessage = await MessageRepository.create(conversationId, {
+      userIdStr: req.user._id?.toString?.() || String(req.user._id),
+      role: 'assistant',
+      content: assistantContent,
+      metadata: {
+        modelUsed: model,
+        temperature: data.temperature,
+      },
+    });
+  }
+
+  // Optional: rerank or refine the assistant reply using RAG reranker
+  if (data.rerank) {
+    try {
+      const memories = await MemoryService.retrieveRelevantMemories({
+        userId: req.user._id?.toString?.() || String(req.user._id),
+        queryText: data.message,
+        limit: data.memoryLimit || 5,
+      });
+
+      const reranked = await RerankerService.rerankAnswers({
+        userId: req.user._id?.toString?.() || String(req.user._id),
+        queryText: data.message,
+        candidateAnswers: [assistantContent],
+        memories,
+        model: model,
+        max_tokens: data.max_tokens,
+      });
+
+      if (Array.isArray(reranked) && reranked[0] && reranked[0].rewrite) {
+        // update assistant message with rewritten top answer
+        const newContent = reranked[0].rewrite;
+        await MessageRepository.updateById(assistantMessage._id, req.user._id, { content: newContent });
+      }
+    } catch (err) {
+      console.error('Rerank failed:', err);
+    }
+  }
 
   // If the conversation still has the default title, generate a short title
   try {

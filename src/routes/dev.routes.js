@@ -3,6 +3,7 @@ const { ApiResponse, AppError } = require('../utils');
 const { requireAuth } = require('../middleware/auth.middleware');
 const EmbeddingService = require('../services/embedding.service');
 const MemoryService = require('../services/memory.service');
+const SummarizerService = require('../services/summarizer.service');
 
 const router = express.Router();
 
@@ -66,6 +67,28 @@ router.post('/memory/search', requireAuth, async (req, res, next) => {
       req.requestId
     );
 
+    return res.status(response.statusCode).json(response.toJSON());
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/conversations/:conversationId/summarize', requireAuth, async (req, res, next) => {
+  try {
+    const { conversationId } = req.params;
+    const { limit } = req.body || {};
+
+    const result = await SummarizerService.summarizeConversation({
+      conversationId,
+      userId: req.user._id,
+      limit: Number.isInteger(limit) ? limit : 50,
+    });
+
+    if (!result) {
+      throw new Error('No messages to summarize');
+    }
+
+    const response = ApiResponse.success({ summary: result.summary }, 'Conversation summarized', 200, req.requestId);
     return res.status(response.statusCode).json(response.toJSON());
   } catch (error) {
     return next(error);

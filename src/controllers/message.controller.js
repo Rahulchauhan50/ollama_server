@@ -6,6 +6,7 @@ const MessageRepository = require('../repositories/message.repository');
 const ConversationRepository = require('../repositories/conversation.repository');
 const EmbeddingService = require('../services/embedding.service');
 const AIService = require('../services/ai.service');
+const ConversationSummaryScheduler = require('../services/conversation-summary-scheduler.service');
 const { buildChatMessages, parseAssistantContent } = require('./chat.controller');
 const { z } = require('zod');
 
@@ -62,6 +63,17 @@ const attachUserMessageEmbedding = async (message, content) => {
   }
 };
 
+const scheduleConversationSummary = (conversationId, userId, options = {}) => {
+  return ConversationSummaryScheduler.scheduleConversationSummary({
+    conversationId,
+    userId,
+    delayMinutes: options.delayMinutes,
+    limit: options.limit,
+    model: options.model,
+    max_tokens: options.max_tokens,
+  });
+};
+
 const handleAddMessage = async (req, res) => {
   const { conversationId } = req.params;
 
@@ -105,6 +117,12 @@ const handleAddMessage = async (req, res) => {
     });
 
     const enrichedUserMessage = await attachUserMessageEmbedding(userMessage, data.content);
+    scheduleConversationSummary(conversationId, req.user._id, {
+      delayMinutes: Number(config.summaryInactivityMinutes) || 10,
+      limit: 50,
+      model,
+      max_tokens: data.max_tokens,
+    });
 
     const recentMessages = await MessageRepository.findByConversationIdBatch(conversationId, 6);
     const orderedMessages = recentMessages.reverse().map((message) => ({
@@ -203,6 +221,13 @@ const handleAddMessage = async (req, res) => {
   const savedMessage = data.role === 'user'
     ? await attachUserMessageEmbedding(message, data.content)
     : message;
+
+  if (data.role === 'user') {
+    scheduleConversationSummary(conversationId, req.user._id, {
+      delayMinutes: Number(config.summaryInactivityMinutes) || 10,
+      limit: 50,
+    });
+  }
 
   res.status(201).json(
     ApiResponse.created(
