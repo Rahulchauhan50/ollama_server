@@ -10,7 +10,7 @@ const startServer = async () => {
     await connectDB();
 
     server = app.listen(config.port, () => {
-      console.log(`✅ Gemini Backend Server running on http://localhost:${config.port}`);
+      console.log(`✅ Backend Server running on http://localhost:${config.port}`);
       console.log('📋 Available Endpoints:');
       console.log(`   GET  http://localhost:${config.port}/api/health - Health check`);
       console.log(`   GET  http://localhost:${config.port}/api/config - Show configuration`);
