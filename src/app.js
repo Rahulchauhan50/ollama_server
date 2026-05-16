@@ -14,6 +14,7 @@ const healthRoutes = require('./routes/health.routes');
 const conversationRoutes = require('./routes/conversation.routes');
 const messageRoutes = require('./routes/message.routes');
 const devRoutes = require('./routes/dev.routes');
+const toolsRoutes = require('./routes/tools.routes');
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api', messageRoutes);
+app.use('/api/tools', toolsRoutes);
 if (!config.isProduction) {
   app.use('/api/dev', devRoutes);
 }
