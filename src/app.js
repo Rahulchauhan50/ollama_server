@@ -125,7 +125,7 @@ app.get('/api/version', (req, res) => {
 app.get('/', (req, res) => {
   const response = ApiResponse.success(
     null,
-    'AI Backend API v1.0',
+    'AI Backend API v1.1',
     200,
     req.requestId
   );
