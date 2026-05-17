@@ -17,4 +17,13 @@ const router = express.Router();
  */
 router.get('/status', requireAuth, requireAdmin, getAdminStatus);
 
+// Ollama internals
+router.get('/ollama/tags', requireAuth, requireAdmin, getOllamaTags);
+router.get('/ollama/ps', requireAuth, requireAdmin, getOllamaPs);
+
+// Counts
+router.get('/users/count', requireAuth, requireAdmin, getCounts);
+router.get('/conversations/count', requireAuth, requireAdmin, getCounts);
+router.get('/messages/count', requireAuth, requireAdmin, getCounts);
+
 module.exports = router;
