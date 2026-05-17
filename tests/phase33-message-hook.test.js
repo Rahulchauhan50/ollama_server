@@ -50,6 +50,9 @@ describe('Phase 33 message hook', () => {
     MessageRepository.create.mockResolvedValue({ _id: 'm1', metadata: {} });
     MessageRepository.updateEmbeddings.mockResolvedValue({ _id: 'm1', metadata: {} });
     MessageRepository.findByConversationIdBatch.mockResolvedValue([]);
+    const AIService = require('../src/services/ai.service');
+    AIService.chat.mockResolvedValue('Test assistant reply');
+    AIService.generate.mockResolvedValue('Generated Title');
 
     const req = {
       params: { conversationId: 'c1' },

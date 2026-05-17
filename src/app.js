@@ -21,8 +21,18 @@ const app = express();
 // Middleware - Security & Parsing
 app.use(helmet());
 
+// Global rate limiter to mitigate brute-force and abuse
+const rateLimit = require('express-rate-limit');
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: config.isProduction ? 100 : 1000, // fewer requests in production
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many requests, please try again later.',
+});
+app.use(limiter);
 
-
+// Tighten allowed origins and request size limits
 const allowedOrigins = [
   'http://localhost:5173', // Development
   'http://localhost:3000', // Development
@@ -48,8 +58,9 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Limit JSON payload sizes to avoid OOM and abuse
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 app.use(cookieParser());
 
 // Middleware - Logging
