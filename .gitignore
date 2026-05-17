@@ -17,4 +17,11 @@ build/
 .vscode/
 coverage/
 progress/
-.github/
+# .github/
+.github/01-overview
+.github/02-database
+.github/03-rag-memory
+.github/04-configuration-and-flows
+.github/05-development-phases
+.github/06-checklists-and-summary
+.github/source
