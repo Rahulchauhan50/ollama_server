@@ -114,6 +114,13 @@ const AuthController = {
     );
   }),
 
+  getUsage: asyncHandler(async (req, res) => {
+    const UsageService = require('../services/usage.service');
+    const userIdStr = req.user._id?.toString?.() || String(req.user._id);
+    const usage = await UsageService.userUsage(userIdStr);
+    res.status(200).json(ApiResponse.success({ usage }, 'User usage retrieved', 200, req.requestId));
+  }),
+
   /**
    * Handle refresh token request
    * POST /api/auth/refresh

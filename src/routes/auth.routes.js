@@ -35,6 +35,7 @@ router.post('/firebase', AuthController.firebase);
  * Get current user (requires authentication)
  */
 router.get('/me', requireAuth, AuthController.getCurrentUser);
+router.get('/me/usage', requireAuth, AuthController.getUsage);
 
 /**
  * POST /api/auth/refresh

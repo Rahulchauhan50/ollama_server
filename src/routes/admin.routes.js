@@ -25,5 +25,9 @@ router.get('/ollama/ps', requireAuth, requireAdmin, getOllamaPs);
 router.get('/users/count', requireAuth, requireAdmin, getCounts);
 router.get('/conversations/count', requireAuth, requireAdmin, getCounts);
 router.get('/messages/count', requireAuth, requireAdmin, getCounts);
+// System logs
+router.get('/system/logs', requireAuth, requireAdmin, getSystemLogs);
+// Usage summary
+router.get('/usage/summary', requireAuth, requireAdmin, getUsageSummary);
 
 module.exports = router;

@@ -141,6 +141,33 @@ const handleAddMessage = async (req, res) => {
       });
 
       assistantContent = parseAssistantContent(chatResponse);
+
+      // Phase 37: capture duration and token usage when provider returns them
+      let extraMetadata = {};
+      if (chatResponse) {
+        // duration
+        if (chatResponse.durationMs) extraMetadata.ollamaDurationMs = chatResponse.durationMs;
+        if (chatResponse.duration_ms) extraMetadata.ollamaDurationMs = chatResponse.duration_ms;
+        if (chatResponse.time_ms) extraMetadata.ollamaDurationMs = chatResponse.time_ms;
+
+        // token usage - common shapes
+        const usage = chatResponse.usage || chatResponse.tokens || chatResponse.tokenUsage || null;
+        if (usage) {
+          extraMetadata.tokenUsage = {
+            promptTokens: usage.prompt_tokens || usage.promptTokens || usage.prompt || 0,
+            completionTokens: usage.completion_tokens || usage.completionTokens || usage.completion || 0,
+            totalTokens: usage.total_tokens || usage.totalTokens || usage.total || 0,
+          };
+        }
+      }
+
+      // merge into userMessage metadata so prompt tokens are attributed
+      if (extraMetadata && Object.keys(extraMetadata).length > 0) {
+        await MessageRepository.updateMetadata(userMessage._id, {
+          ...(userMessage.metadata || {}),
+          ...extraMetadata,
+        });
+      }
     } catch (error) {
       await MessageRepository.updateMetadata(userMessage._id, {
         ...(userMessage.metadata || {}),
@@ -166,8 +193,27 @@ const handleAddMessage = async (req, res) => {
       metadata: {
         modelUsed: model,
         temperature: data.temperature,
+        // copy metadata from userMessage if available (tokens/duration were saved there)
       },
     });
+
+    // If chatResponse included tokenUsage/ollamaDuration, also attach to assistant message
+    try {
+      const recent = await MessageRepository.findByConversationIdBatch(conversationId, 3);
+      const latestAssistant = recent.find((m) => m.role === 'assistant');
+      if (latestAssistant && latestAssistant.metadata) {
+        // update assistant message with parsed usage if userMessage had it
+        if (latestAssistant.metadata.tokenUsage || latestAssistant.metadata.ollamaDurationMs) {
+          await MessageRepository.updateMetadata(assistantMessage._id, {
+            ...(assistantMessage.metadata || {}),
+            tokenUsage: latestAssistant.metadata.tokenUsage,
+            ollamaDurationMs: latestAssistant.metadata.ollamaDurationMs,
+          });
+        }
+      }
+    } catch (e) {
+      // non-fatal
+    }
 
     // If the conversation still has the default title, generate a short title
     try {

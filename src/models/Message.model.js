@@ -57,6 +57,13 @@ const messageSchema = new mongoose.Schema(
       aiErrorCode: String,
       aiErrorMessage: String,
       embeddingFailed: Boolean,
+      // Phase 37: usage tracking
+      ollamaDurationMs: Number,
+      tokenUsage: {
+        promptTokens: Number,
+        completionTokens: Number,
+        totalTokens: Number,
+      },
     },
   },
   {

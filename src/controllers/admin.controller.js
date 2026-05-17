@@ -67,6 +67,22 @@ const getCounts = asyncHandler(async (req, res) => {
   res.status(200).json(response);
 });
 
+const getSystemLogs = asyncHandler(async (req, res) => {
+  const LoggingService = require('../services/logging.service');
+  const limit = Number(req.query.limit || 50);
+  const logs = await LoggingService.recent(limit);
+  const response = new ApiResponse(200, 'System logs', { logs });
+  res.status(200).json(response);
+});
+
+const getUsageSummary = asyncHandler(async (req, res) => {
+  const UsageService = require('../services/usage.service');
+  const limit = Math.min(Number(req.query.limit || 50), 200);
+  const summary = await UsageService.summary(limit);
+  const response = new ApiResponse(200, 'Usage summary', { summary });
+  res.status(200).json(response);
+});
+
 module.exports = {
   getAdminStatus,
   getOllamaTags,
