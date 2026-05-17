@@ -1,4 +1,4 @@
-name: CI/CD UMTC Backend
+name: CI/CD Vertext Backend
 
 on:
   push:
