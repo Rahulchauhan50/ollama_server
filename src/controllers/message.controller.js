@@ -7,6 +7,7 @@ const ConversationRepository = require('../repositories/conversation.repository'
 const EmbeddingService = require('../services/embedding.service');
 const AIService = require('../services/ai.service');
 const ConversationSummaryScheduler = require('../services/conversation-summary-scheduler.service');
+const { buildConversationTitleFromMessage } = require('../services/conversation-title.service');
 const { buildChatMessages, parseAssistantContent } = require('./chat.controller');
 const { z } = require('zod');
 
@@ -218,9 +219,7 @@ const handleAddMessage = async (req, res) => {
     // If the conversation still has the default title, generate a short title
     try {
       if (!conversation.title || conversation.title === 'New Conversation') {
-        const titlePrompt = `Create a short, descriptive conversation title (max 6 words) based on the following user message and AI reply. Return only the title.\n\nUser: ${data.content}\nAssistant: ${assistantContent}`;
-        const gen = await AIService.generate(model, titlePrompt, '', { max_tokens: 30 });
-        const generatedTitle = parseAssistantContent(gen)?.trim();
+        const generatedTitle = buildConversationTitleFromMessage(data.content);
         if (generatedTitle && generatedTitle.length > 0) {
           const updatedConversation = await ConversationRepository.updateById(conversationId, req.user._id, { title: generatedTitle });
           if (updatedConversation) {

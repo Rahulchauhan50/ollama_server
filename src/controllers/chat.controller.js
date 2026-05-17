@@ -8,6 +8,8 @@ const NBestService = require('../services/nbest.service');
 const ConversationRepository = require('../repositories/conversation.repository');
 const MessageRepository = require('../repositories/message.repository');
 const AIService = require('../services/ai.service');
+const { buildConversationTitleFromMessage } = require('../services/conversation-title.service');
+const { buildRetrievalQueryText } = require('../services/rag.service');
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(10000),
@@ -71,7 +73,7 @@ const handleChatConversation = async (req, res) => {
   const { conversationId } = req.params;
 
 
-  const conversation = await ConversationRepository.findById(conversationId, req.user._id);
+  let conversation = await ConversationRepository.findById(conversationId, req.user._id);
   if (!conversation) {
     throw AppError.notFound('Conversation not found');
   }
@@ -143,7 +145,7 @@ const handleChatConversation = async (req, res) => {
 
       const memories = await MemoryService.retrieveRelevantMemories({
         userId: req.user._id?.toString?.() || String(req.user._id),
-        queryText: data.message,
+        queryText: buildRetrievalQueryText({ queryText: data.message, recentMessages: orderedHistory }),
         limit: data.memoryLimit || 5,
       });
 
@@ -200,7 +202,7 @@ const handleChatConversation = async (req, res) => {
     try {
       const memories = await MemoryService.retrieveRelevantMemories({
         userId: req.user._id?.toString?.() || String(req.user._id),
-        queryText: data.message,
+        queryText: buildRetrievalQueryText({ queryText: data.message, recentMessages: orderedHistory }),
         limit: data.memoryLimit || 5,
       });
 
@@ -226,9 +228,7 @@ const handleChatConversation = async (req, res) => {
   // If the conversation still has the default title, generate a short title
   try {
     if (!conversation.title || conversation.title === 'New Conversation') {
-      const titlePrompt = `Create a short, descriptive conversation title (max 6 words) based on the following user message and AI reply. Return only the title.\n\nUser: ${data.message}\nAssistant: ${assistantContent}`;
-      const gen = await AIService.generate(model, titlePrompt, '', { max_tokens: 30 });
-      const generatedTitle = parseAssistantContent(gen)?.trim();
+      const generatedTitle = buildConversationTitleFromMessage(data.message);
       if (generatedTitle && generatedTitle.length > 0) {
         const updatedConversation = await ConversationRepository.updateById(conversationId, req.user._id, { title: generatedTitle });
         if (updatedConversation) {

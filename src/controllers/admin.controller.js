@@ -88,4 +88,6 @@ module.exports = {
   getOllamaTags,
   getOllamaPs,
   getCounts,
+  getSystemLogs,
+  getUsageSummary,
 };

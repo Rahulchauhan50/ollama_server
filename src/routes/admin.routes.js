@@ -1,5 +1,12 @@
 const express = require('express');
-const { getAdminStatus } = require('../controllers/admin.controller');
+const {
+	getAdminStatus,
+	getOllamaTags,
+	getOllamaPs,
+	getCounts,
+	getSystemLogs,
+	getUsageSummary,
+} = require('../controllers/admin.controller');
 const { requireAuth } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/admin');
 

@@ -15,7 +15,7 @@ const normalizeUserId = (userId) => {
 };
 
 const MemoryService = {
-  async retrieveRelevantMemories({ userId, queryText, limit = 10, threshold = 0.5 } = {}) {
+  async retrieveRelevantMemories({ userId, queryText, limit = 10, threshold = 0.5, includeAll = false } = {}) {
     const normalizedUserId = normalizeUserId(userId);
     const normalizedQuery = typeof queryText === 'string' ? queryText.trim() : '';
 
@@ -39,6 +39,7 @@ const MemoryService = {
       {
         limit: safeLimit,
         threshold: safeThreshold,
+        includeAll,
       }
     );
 

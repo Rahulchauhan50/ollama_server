@@ -176,15 +176,20 @@ const MessageRepository = {
       .lean();
   },
 
-  async findWithEmbeddingsByUserId(userIdStr, limit = 50) {
-    return Message.find({
+  async findWithEmbeddingsByUserId(userIdStr, limit = 50, includeAll = false) {
+    const query = {
       userIdStr,
-      isMemoryEligible: true,
       $or: [
         { embedding: { $exists: true, $ne: null } },
         { embeddings: { $exists: true, $ne: null } },
       ],
-    })
+    };
+
+    if (!includeAll) {
+      query.isMemoryEligible = true;
+    }
+
+    return Message.find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
@@ -194,9 +199,10 @@ const MessageRepository = {
     const {
       limit = 10,
       threshold = 0.5,
+      includeAll = false,
     } = options;
 
-    const messages = await this.findWithEmbeddingsByUserId(userIdStr, limit * 5);
+    const messages = await this.findWithEmbeddingsByUserId(userIdStr, limit * 5, includeAll);
     const similarMessages = EmbeddingService.findSimilarEmbeddings(
       queryEmbedding,
       messages.map((message) => ({
