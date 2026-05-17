@@ -10,7 +10,7 @@ module.exports = {
     '**/tests/**/*.test.js',
     '**/?(*.)+(spec|test).js'
   ],
-  setupFiles: [],
-  testTimeout: 30000,
+  setupFilesAfterEnv: ['./jest.setup.js'],
+  testTimeout: 20000,
   verbose: true
 };
