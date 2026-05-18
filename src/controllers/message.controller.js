@@ -147,9 +147,9 @@ const handleAddMessage = async (req, res) => {
       let extraMetadata = {};
       if (chatResponse) {
         // duration
-        if (chatResponse.durationMs) extraMetadata.ollamaDurationMs = chatResponse.durationMs;
-        if (chatResponse.duration_ms) extraMetadata.ollamaDurationMs = chatResponse.duration_ms;
-        if (chatResponse.time_ms) extraMetadata.ollamaDurationMs = chatResponse.time_ms;
+        if (chatResponse.durationMs) { extraMetadata.ollamaDurationMs = chatResponse.durationMs; }
+        if (chatResponse.duration_ms) { extraMetadata.ollamaDurationMs = chatResponse.duration_ms; }
+        if (chatResponse.time_ms) { extraMetadata.ollamaDurationMs = chatResponse.time_ms; }
 
         // token usage - common shapes
         const usage = chatResponse.usage || chatResponse.tokens || chatResponse.tokenUsage || null;
